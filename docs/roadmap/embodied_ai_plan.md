@@ -7,7 +7,7 @@
 
 构建一个"能听、能看、能理解、能规划、能行动"的机器人智能体：
 
-```
+```text
 用户（语音 / 文本 / 图像）
         │
         ▼
@@ -21,10 +21,10 @@ Multimodal Robot Agent（LLM/VLM + Planner + Memory + Reflection + Recovery）
 
 ## 2. ROS2 路线
 
-### 2.1 阶段一：基础通信与导航（规划）
+### 2.1 阶段一：基础通信与闭环（已落地）
 
-- 搭建 ROS2 节点框架（Humble 或更新 LTS）
-- 机器人执行层统一接口：
+- ROS2 Humble 节点框架（WSL2 + Gazebo 11）
+- 执行层统一接口 `Ros2RobotTool`：
 
 ```python
 class Ros2RobotTool:
@@ -54,7 +54,7 @@ class Ros2RobotTool:
 
 ### 3.1 第一阶段：YOLO（复用现有能力，走统一接口）
 
-```
+```text
 Camera → YOLO 检测 → 目标信息 → Agent 理解 → ROS2 执行
 ```
 
@@ -69,7 +69,7 @@ Camera → YOLO 检测 → 目标信息 → Agent 理解 → ROS2 执行
 
 ## 4. 语音路线
 
-```
+```text
 语音输入 → ASR → 文本任务 → Agent 规划 → 机器人执行
 ```
 
@@ -97,7 +97,7 @@ Camera → YOLO 检测 → 目标信息 → Agent 理解 → ROS2 执行
 
 ### 第一学期：基础平台
 
-- ROS2 环境与差速/轮式平台接入
+- ROS2 环境与差速/轮式平台接入（闭环已跑通）
 - 导航 + SLAM 跑通
 - Agent 核心（Planner / Memory / Reflection / Recovery）在 ROS2 上重构
 
@@ -118,4 +118,4 @@ Camera → YOLO 检测 → 目标信息 → Agent 理解 → ROS2 执行
 - 本科项目（AI-Robot-Demo）冻结在 `bachelor-thesis-stable` 分支，
   仅用于毕业论文、软著与答辩，不再演进
 - 本路线不修改本科实验数据、不删除本科代码
-- ABB 相关模块只归档在 `research/legacy/`，不进入未来实现
+- 工业机器人执行模块（本科项目）不进入未来实现
