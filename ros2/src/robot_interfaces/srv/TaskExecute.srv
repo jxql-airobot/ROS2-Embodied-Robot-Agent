@@ -1,0 +1,6 @@
+# Natural-language task entry point (user/voice -> agent -> structured action)
+string task
+---
+bool success
+string response
+string action_json

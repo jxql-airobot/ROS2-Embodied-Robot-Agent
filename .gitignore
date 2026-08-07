@@ -30,6 +30,6 @@ runtime_logs/
 *.pdf
 
 # ROS2 构建产物
-ros2_ws/build/
-ros2_ws/install/
-ros2_ws/log/
+ros2/build/
+ros2/install/
+ros2/log/

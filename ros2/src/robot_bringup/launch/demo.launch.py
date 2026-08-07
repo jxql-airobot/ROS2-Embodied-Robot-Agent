@@ -1,0 +1,62 @@
+"""Full demo: Gazebo sim + robot_control + robot_agent (+ optional RViz)."""
+
+import os
+
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
+
+
+def generate_launch_description() -> LaunchDescription:
+    pkg_bringup = get_package_share_directory("robot_bringup")
+    pkg_agent = get_package_share_directory("robot_agent")
+
+    default_world = os.path.join(pkg_bringup, "worlds", "simple_world.world")
+    default_llm_config = os.path.join(pkg_agent, "config", "llm.yaml")
+
+    sim = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(pkg_bringup, "launch", "sim.launch.py")
+        ),
+        launch_arguments={
+            "world": LaunchConfiguration("world"),
+            "gui": LaunchConfiguration("gui"),
+            "rviz": LaunchConfiguration("rviz"),
+            "verbose": LaunchConfiguration("verbose"),
+        }.items(),
+    )
+
+    robot_control = Node(
+        package="robot_control",
+        executable="robot_control_node",
+        output="screen",
+    )
+
+    robot_agent = Node(
+        package="robot_agent",
+        executable="robot_agent_node",
+        output="screen",
+        parameters=[
+            {
+                "llm_config": LaunchConfiguration("llm_config"),
+                "llm_provider": LaunchConfiguration("llm_provider"),
+            }
+        ],
+    )
+
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument("world", default_value=default_world),
+            DeclareLaunchArgument("gui", default_value="true"),
+            DeclareLaunchArgument("rviz", default_value="true"),
+            DeclareLaunchArgument("verbose", default_value="false"),
+            DeclareLaunchArgument("llm_config", default_value=default_llm_config),
+            DeclareLaunchArgument("llm_provider", default_value=""),
+            sim,
+            robot_control,
+            robot_agent,
+        ]
+    )

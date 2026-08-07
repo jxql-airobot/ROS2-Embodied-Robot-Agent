@@ -1,0 +1,5 @@
+# Synchronously send one robot command (returns whether it was accepted)
+robot_interfaces/RobotCommand command
+---
+bool success
+string message

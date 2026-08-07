@@ -1,0 +1,150 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="simple_diffbot">
+
+  <!-- ============ inertia macros ============ -->
+  <xacro:macro name="box_inertia" params="m x y z">
+    <inertial>
+      <mass value="${m}"/>
+      <inertia ixx="${m*(y*y+z*z)/12.0}" iyy="${m*(x*x+z*z)/12.0}"
+               izz="${m*(x*x+y*y)/12.0}" ixy="0.0" ixz="0.0" iyz="0.0"/>
+    </inertial>
+  </xacro:macro>
+
+  <xacro:macro name="cylinder_inertia" params="m r l">
+    <inertial>
+      <mass value="${m}"/>
+      <inertia ixx="${m*(3.0*r*r+l*l)/12.0}" iyy="${m*(3.0*r*r+l*l)/12.0}"
+               izz="${m*r*r/2.0}" ixy="0.0" ixz="0.0" iyz="0.0"/>
+    </inertial>
+  </xacro:macro>
+
+  <xacro:macro name="sphere_inertia" params="m r">
+    <inertial>
+      <mass value="${m}"/>
+      <inertia ixx="${0.4*m*r*r}" iyy="${0.4*m*r*r}" izz="${0.4*m*r*r}"
+               ixy="0.0" ixz="0.0" iyz="0.0"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- ============ links ============ -->
+  <link name="base_footprint"/>
+
+  <link name="base_link">
+    <visual>
+      <geometry><box size="0.30 0.20 0.08"/></geometry>
+      <material name="blue"><color rgba="0.2 0.4 0.9 1.0"/></material>
+    </visual>
+    <collision>
+      <geometry><box size="0.30 0.20 0.08"/></geometry>
+    </collision>
+    <xacro:box_inertia m="1.2" x="0.30" y="0.20" z="0.08"/>
+  </link>
+
+  <joint name="base_footprint_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0.06"/>
+  </joint>
+
+  <!-- wheels: cylinder long axis (Z) rotated onto the Y axle -->
+  <xacro:macro name="wheel" params="name side">
+    <link name="${name}">
+      <visual>
+        <origin xyz="0 0 0" rpy="-1.5707963267948966 0 0"/>
+        <geometry><cylinder radius="0.045" length="0.03"/></geometry>
+        <material name="dark"><color rgba="0.15 0.15 0.15 1.0"/></material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="-1.5707963267948966 0 0"/>
+        <geometry><cylinder radius="0.045" length="0.03"/></geometry>
+      </collision>
+      <inertial>
+        <mass value="0.15"/>
+        <inertia ixx="${0.15*(3*0.045*0.045+0.03*0.03)/12.0}"
+                 iyy="${0.15*0.045*0.045/2.0}"
+                 izz="${0.15*(3*0.045*0.045+0.03*0.03)/12.0}"
+                 ixy="0.0" ixz="0.0" iyz="0.0"/>
+      </inertial>
+    </link>
+    <joint name="${name}_joint" type="continuous">
+      <parent link="base_link"/>
+      <child link="${name}"/>
+      <origin xyz="0 ${side*0.15} -0.015" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:wheel name="left_wheel" side="1"/>
+  <xacro:wheel name="right_wheel" side="-1"/>
+
+  <!-- caster (passive support) -->
+  <link name="caster_wheel">
+    <visual>
+      <geometry><sphere radius="0.02"/></geometry>
+      <material name="dark"><color rgba="0.15 0.15 0.15 1.0"/></material>
+    </visual>
+    <collision>
+      <geometry><sphere radius="0.02"/></geometry>
+    </collision>
+    <xacro:sphere_inertia m="0.05" r="0.02"/>
+  </link>
+  <joint name="caster_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="caster_wheel"/>
+    <origin xyz="-0.11 0 -0.04"/>
+  </joint>
+
+  <!-- sensor mount placeholders (camera / lidar for later milestones) -->
+  <link name="camera_link"/>
+  <joint name="camera_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="camera_link"/>
+    <origin xyz="0.13 0 0.02"/>
+  </joint>
+
+  <link name="lidar_link"/>
+  <joint name="lidar_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="lidar_link"/>
+    <origin xyz="0 0 0.07"/>
+  </joint>
+
+  <!-- ============ gazebo ============ -->
+  <gazebo reference="base_link">
+    <material>Gazebo/Blue</material>
+  </gazebo>
+
+  <gazebo>
+    <plugin name="diff_drive" filename="libgazebo_ros_diff_drive.so">
+      <ros>
+        <namespace>/</namespace>
+        <remapping>cmd_vel:=cmd_vel</remapping>
+      </ros>
+      <left_joint>left_wheel_joint</left_joint>
+      <right_joint>right_wheel_joint</right_joint>
+      <wheel_separation>0.30</wheel_separation>
+      <wheel_diameter>0.09</wheel_diameter>
+      <max_wheel_torque>20</max_wheel_torque>
+      <max_wheel_acceleration>1.0</max_wheel_acceleration>
+      <publish_odom>true</publish_odom>
+      <publish_odom_tf>true</publish_odom_tf>
+      <publish_wheel_tf>true</publish_wheel_tf>
+      <odometry_frame>odom</odometry_frame>
+      <robot_base_frame>base_footprint</robot_base_frame>
+      <update_rate>50.0</update_rate>
+    </plugin>
+  </gazebo>
+
+  <gazebo>
+    <plugin name="joint_state" filename="libgazebo_ros_joint_state_publisher.so">
+      <ros>
+        <namespace>/</namespace>
+        <remapping>joint_states:=joint_states</remapping>
+      </ros>
+      <update_rate>30.0</update_rate>
+      <joint_name>left_wheel_joint</joint_name>
+      <joint_name>right_wheel_joint</joint_name>
+    </plugin>
+  </gazebo>
+
+</robot>
