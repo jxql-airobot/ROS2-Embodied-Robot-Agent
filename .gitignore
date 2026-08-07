@@ -1,0 +1,35 @@
+# 密钥文件，绝不能上传
+.env
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+
+# 虚拟环境
+.venv/
+venv/
+
+# 模型与大文件（不上传）
+models/
+cache/
+*.pt
+*.pth
+*.h5
+*.onnx
+
+# 运行时日志与临时产物
+logs/
+runtime_logs/
+
+# Office / PDF 文档（本地生成，不公开）
+*.docx
+*.pdf
+
+# ROS2 构建产物
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
