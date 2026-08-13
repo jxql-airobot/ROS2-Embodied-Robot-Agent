@@ -39,6 +39,17 @@ _ROTATE_RIGHT = ("右转", "右拐", "向右", "右旋", "turn right", "rotate r
 _BACKWARD = ("后退", "向后", "倒车", "backward", "back up", "reverse", "move back")
 _FORWARD = ("前进", "向前", "直行", "往前走", "forward", "go straight", "move forward", "ahead")
 _NAVIGATE = ("导航", "前往", "去", "到", "navigate", "go to", "travel to")
+_VISION_FIND = ("寻找", "找到", "找", "find", "search", "locate")
+_VISION_SCENE = ("有什么", "看到什么", "看见什么", "场景", "观察", "看看", "看到", "what", "see", "scene", "detect", "describe")
+
+# Minimal Chinese -> English COCO object-name mapping for the offline mock.
+_OBJECT_ZH2EN = {
+    "杯子": "cup", "水杯": "cup", "瓶子": "bottle",
+    "行人": "person", "人": "person",
+    "公交车": "bus", "公共汽车": "bus", "汽车": "car", "车": "car",
+    "椅子": "chair", "桌子": "dining table",
+    "猫": "cat", "狗": "dog", "手机": "cell phone", "笔记本电脑": "laptop",
+}
 
 DEFAULT_SPEED = 0.3
 DEFAULT_ANGULAR = 0.5
@@ -72,6 +83,12 @@ class MockLLM(BaseLLM):
 
         if _contains_any(t, _STOP_WORDS):
             return ActionPlan("stop", response="好的，机器人已停止。")
+
+        if _contains_any(t, _VISION_FIND):
+            target = self._extract_vision_target(task)
+            return ActionPlan("vision", goal=target, response=f"正在查找：{target}。")
+        if _contains_any(t, _VISION_SCENE):
+            return ActionPlan("vision", goal="", response="正在查看当前场景。")
 
         if _contains_any(t, _ROTATE_LEFT):
             return ActionPlan(
@@ -140,6 +157,25 @@ class MockLLM(BaseLLM):
                 if goal:
                     return goal
         return task.strip()
+
+    def _extract_vision_target(self, task: str) -> str:
+        t = task.lower()
+        for marker in ("find", "search", "locate", "寻找", "找到", "找"):
+            idx = t.find(marker)
+            if idx != -1:
+                target = task[idx + len(marker) :]
+                target = target.strip(" 的了一个些，。！？!? ")
+                break
+        else:
+            target = task.strip()
+        target = re.sub(r"^(一个|个|一下|一只|一条|a |an |the )", "", target)
+        return self._translate_object(target.strip())
+
+    def _translate_object(self, text: str) -> str:
+        for zh, en in _OBJECT_ZH2EN.items():
+            if zh in text:
+                return en
+        return text
 
 
 # ---------------------------------------------------------------------------

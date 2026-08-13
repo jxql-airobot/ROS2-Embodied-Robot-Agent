@@ -66,10 +66,9 @@ class VisionNode(Node):
 
     @staticmethod
     def _to_bgr(msg: Image) -> "cv2.Mat":
-        import numpy as np
+        from vision.image_utils import ros_image_to_bgr
 
-        buffer = np.frombuffer(msg.data, dtype=np.uint8)
-        return buffer.reshape(msg.height, msg.width, -1)[:, :, :3]
+        return ros_image_to_bgr(msg.data, msg.height, msg.width, msg.encoding)
 
 
 def main(args=None) -> None:

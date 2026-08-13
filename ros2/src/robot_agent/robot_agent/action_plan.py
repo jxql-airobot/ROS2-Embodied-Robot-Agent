@@ -5,8 +5,9 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict
 
-#: Actions the agent may generate (execution layer supports the first three).
-ALLOWED_ACTIONS = ("move", "stop", "rotate", "navigate")
+#: Actions the agent may generate. The robot execution layer supports the first
+#: four; "vision" is routed to the agent's vision tool instead of the robot.
+ALLOWED_ACTIONS = ("move", "stop", "rotate", "navigate", "vision")
 
 
 @dataclass

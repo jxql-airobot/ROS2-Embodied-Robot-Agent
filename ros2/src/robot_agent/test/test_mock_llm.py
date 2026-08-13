@@ -55,6 +55,21 @@ class TestMockLLM(unittest.TestCase):
         with self.assertRaises(LLMError):
             self.llm.generate_action("讲个笑话")
 
+    def test_vision_find_chinese(self):
+        plan = self.llm.generate_action("帮我找杯子")
+        self.assertEqual(plan.action, "vision")
+        self.assertEqual(plan.goal, "cup")
+
+    def test_vision_find_english(self):
+        plan = self.llm.generate_action("find a cup")
+        self.assertEqual(plan.action, "vision")
+        self.assertEqual(plan.goal, "cup")
+
+    def test_vision_scene(self):
+        plan = self.llm.generate_action("场景中有什么物体？")
+        self.assertEqual(plan.action, "vision")
+        self.assertEqual(plan.goal, "")
+
 
 if __name__ == "__main__":
     unittest.main()

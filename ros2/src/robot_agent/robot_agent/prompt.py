@@ -16,6 +16,7 @@ SYSTEM_PROMPT = (
     '- "rotate": 原地旋转。angular_z>0 左转，<0 右转（rad/s）；duration 秒数。\n'
     '- "stop": 立即停止。其余字段为 0。\n'
     '- "navigate": 导航到目标点/地点（未来 Navigation2）。把目标写入 goal 字段。\n'
+    '- "vision": 视觉查询。goal 是要找的物体名（英文 COCO 类别，如 "cup"）；goal 为空表示查看整个场景。\n'
     "输出 JSON 格式（字段名必须完全一致，值为数字/字符串，不要注释）：\n"
     '{"action":"move","linear_x":0.3,"linear_y":0.0,"angular_z":0.0,"duration":2.0,'
     '"goal":"","params":{}}\n'
@@ -30,6 +31,10 @@ SYSTEM_PROMPT = (
     '"duration":0.0,"goal":"","params":{}}\n'
     '用户："去厨房" -> {"action":"navigate","linear_x":0.0,"linear_y":0.0,'
     '"angular_z":0.0,"duration":0.0,"goal":"kitchen","params":{}}\n'
+    '用户："帮我找杯子" -> {"action":"vision","linear_x":0.0,"linear_y":0.0,'
+    '"angular_z":0.0,"duration":0.0,"goal":"cup","params":{}}\n'
+    '用户："场景中有什么物体？" -> {"action":"vision","linear_x":0.0,"linear_y":0.0,'
+    '"angular_z":0.0,"duration":0.0,"goal":"","params":{}}\n'
     "默认速度：linear_x 用 0.3 m/s，angular_z 用 0.5 rad/s。"
     "如果指令给出距离（米）或角度（度），换算成持续时间；如果给了明确速度，按给定速度执行。"
 )

@@ -18,8 +18,11 @@ from rclpy.node import Node
 from robot_interfaces.srv import TaskExecute
 from std_msgs.msg import String
 
+from robot_agent.action_plan import ActionPlan
 from robot_agent.llm import BaseLLM, LLMError, load_llm
+from robot_agent.vision_response import format_vision_result
 from robot_tools.ros2_robot_tool import Ros2RobotTool
+from robot_tools.ros2_vision_tool import Ros2VisionTool
 
 
 class RobotAgentNode(Node):
@@ -27,6 +30,7 @@ class RobotAgentNode(Node):
         self,
         llm: Optional[BaseLLM] = None,
         tool: Optional[Ros2RobotTool] = None,
+        vision_tool: Optional[Ros2VisionTool] = None,
     ) -> None:
         super().__init__("robot_agent")
 
@@ -37,6 +41,7 @@ class RobotAgentNode(Node):
         self.declare_parameter("tool_command_topic", "/robot_command")
         self.declare_parameter("tool_status_topic", "/robot_status")
         self.declare_parameter("tool_odom_topic", "/odom")
+        self.declare_parameter("vision_detections_topic", "/vision/detections")
 
         task_input_topic = self.get_parameter("task_input_topic").value
         task_service = self.get_parameter("task_service").value
@@ -46,6 +51,9 @@ class RobotAgentNode(Node):
             command_topic=self.get_parameter("tool_command_topic").value,
             status_topic=self.get_parameter("tool_status_topic").value,
             odom_topic=self.get_parameter("tool_odom_topic").value,
+        )
+        self._vision_tool = vision_tool if vision_tool is not None else Ros2VisionTool(
+            detections_topic=self.get_parameter("vision_detections_topic").value
         )
 
         self._task_sub = self.create_subscription(
@@ -66,6 +74,10 @@ class RobotAgentNode(Node):
     def tool(self) -> Ros2RobotTool:
         return self._tool
 
+    @property
+    def vision_tool(self) -> Ros2VisionTool:
+        return self._vision_tool
+
     def _make_llm(self) -> BaseLLM:
         config_path = str(self.get_parameter("llm_config").value)
         config = {}
@@ -85,6 +97,8 @@ class RobotAgentNode(Node):
         """Run one NL task. Returns (success, response, action_json)."""
         try:
             plan = self._llm.generate_action(task)
+            if plan.action == "vision":
+                return self._handle_vision(plan, task)
             action_json = json.dumps(plan.to_command_dict(), ensure_ascii=False)
             ok = self._tool.execute_action(plan.to_command_dict())
             if ok:
@@ -98,6 +112,20 @@ class RobotAgentNode(Node):
         except Exception as exc:  # keep the node alive on unexpected errors
             self.get_logger().error(f"unexpected error for task '{task}': {exc}")
             return False, f"内部错误：{exc}", ""
+
+    def _handle_vision(self, plan: ActionPlan, task: str) -> tuple[bool, str, str]:
+        goal = (plan.goal or "").strip()
+        try:
+            if goal:
+                result = self._vision_tool.find_object(goal)
+            else:
+                result = self._vision_tool.get_objects()
+            response = format_vision_result(result, goal)
+            action_json = json.dumps(result, ensure_ascii=False)
+            return True, response, action_json
+        except Exception as exc:  # keep the node alive on unexpected errors
+            self.get_logger().error(f"vision error for task '{task}': {exc}")
+            return False, f"视觉查询失败：{exc}", ""
 
     def _on_task_input(self, msg: String) -> None:
         success, response, _ = self.handle_task(msg.data)
@@ -114,6 +142,7 @@ def main(args=None) -> None:
     executor = MultiThreadedExecutor()
     executor.add_node(agent)
     executor.add_node(agent.tool)
+    executor.add_node(agent.vision_tool)
     try:
         executor.spin()
     except KeyboardInterrupt:
@@ -121,6 +150,7 @@ def main(args=None) -> None:
     finally:
         executor.shutdown()
         agent.tool.destroy_node()
+        agent.vision_tool.destroy_node()
         agent.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()
