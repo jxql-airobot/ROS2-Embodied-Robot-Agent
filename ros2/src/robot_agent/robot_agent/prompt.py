@@ -17,6 +17,7 @@ SYSTEM_PROMPT = (
     '- "stop": 立即停止。其余字段为 0。\n'
     '- "navigate": 导航到目标点/地点（未来 Navigation2）。把目标写入 goal 字段。\n'
     '- "vision": 视觉查询。goal 是要找的物体名（英文 COCO 类别，如 "cup"）；goal 为空表示查看整个场景。\n'
+    '- "approach": 找物并靠近。goal 是要找的物体名（英文 COCO 类别）；先视觉检测，再根据目标方向移动。\n'
     "输出 JSON 格式（字段名必须完全一致，值为数字/字符串，不要注释）：\n"
     '{"action":"move","linear_x":0.3,"linear_y":0.0,"angular_z":0.0,"duration":2.0,'
     '"goal":"","params":{}}\n'
@@ -31,12 +32,23 @@ SYSTEM_PROMPT = (
     '"duration":0.0,"goal":"","params":{}}\n'
     '用户："去厨房" -> {"action":"navigate","linear_x":0.0,"linear_y":0.0,'
     '"angular_z":0.0,"duration":0.0,"goal":"kitchen","params":{}}\n'
-    '用户："帮我找杯子" -> {"action":"vision","linear_x":0.0,"linear_y":0.0,'
+    '用户："帮我找杯子" -> {"action":"approach","linear_x":0.0,"linear_y":0.0,'
     '"angular_z":0.0,"duration":0.0,"goal":"cup","params":{}}\n'
     '用户："场景中有什么物体？" -> {"action":"vision","linear_x":0.0,"linear_y":0.0,'
     '"angular_z":0.0,"duration":0.0,"goal":"","params":{}}\n'
     "默认速度：linear_x 用 0.3 m/s，angular_z 用 0.5 rad/s。"
     "如果指令给出距离（米）或角度（度），换算成持续时间；如果给了明确速度，按给定速度执行。"
+)
+
+
+MOTION_PROMPT = (
+    "你是具身机器人 Agent 的运动规划器。根据视觉检测结果，输出让机器人靠近目标的运动动作，"
+    "只输出一个 JSON 对象，不要输出其他文字。\n"
+    "规则：目标在图像左侧 -> rotate（angular_z>0 左转）；右侧 -> rotate（angular_z<0 右转）；"
+    "中间 -> move（linear_x>0 前进）。若没有目标，输出 stop。\n"
+    "默认速度 linear_x=0.3 m/s，angular_z=0.5 rad/s；角度/距离换算成 duration 秒数。\n"
+    '输出格式：{"action":"move|rotate|stop","linear_x":0.0,"linear_y":0.0,'
+    '"angular_z":0.0,"duration":0.0,"goal":"","params":{}}\n'
 )
 
 

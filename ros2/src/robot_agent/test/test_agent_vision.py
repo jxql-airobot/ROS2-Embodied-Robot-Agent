@@ -1,4 +1,4 @@
-"""Integration-style test: the agent routes a vision action to the vision tool."""
+"""Integration-style test: the agent routes vision/approach actions to tools."""
 
 import unittest
 
@@ -9,15 +9,27 @@ from robot_agent.robot_agent_node import RobotAgentNode
 
 
 class _FakeVisionTool:
-    def __init__(self):
+    def __init__(self, found=True, direction="center"):
+        self.found = found
+        self.direction = direction
         self.last_query = None
 
     def find_object(self, name):
         self.last_query = ("find", name)
+        if not self.found:
+            return {"found": False, "objects": []}
         return {
             "found": True,
             "objects": [
-                {"name": name, "confidence": 0.93, "position": {"x": 320.0, "y": 240.0}}
+                {
+                    "name": name,
+                    "confidence": 0.93,
+                    "position": {"x": 320.0, "y": 240.0},
+                    "center_x": 320.0,
+                    "center_y": 240.0,
+                    "direction": self.direction,
+                    "distance": None,
+                }
             ],
         }
 
@@ -27,11 +39,15 @@ class _FakeVisionTool:
 
 
 class _FakeRobotTool:
+    def __init__(self):
+        self.actions = []
+
     def execute_action(self, action):
+        self.actions.append(action)
         return True
 
 
-class TestAgentVisionRouting(unittest.TestCase):
+class TestAgentApproachRouting(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         rclpy.init()
@@ -40,26 +56,37 @@ class TestAgentVisionRouting(unittest.TestCase):
     def tearDownClass(cls):
         rclpy.shutdown()
 
-    def setUp(self):
-        self.vision = _FakeVisionTool()
-        self.agent = RobotAgentNode(
-            llm=MockLLM(), tool=_FakeRobotTool(), vision_tool=self.vision
-        )
-
     def tearDown(self):
-        self.agent.destroy_node()
+        if getattr(self, "agent", None):
+            self.agent.destroy_node()
 
-    def test_find_object_routes_to_vision_tool(self):
+    def test_approach_center_moves_forward(self):
+        vision = _FakeVisionTool(direction="center")
+        robot = _FakeRobotTool()
+        self.agent = RobotAgentNode(llm=MockLLM(), tool=robot, vision_tool=vision)
         ok, response, action_json = self.agent.handle_task("帮我找杯子")
         self.assertTrue(ok)
-        self.assertEqual(self.vision.last_query, ("find", "cup"))
+        self.assertEqual(vision.last_query, ("find", "cup"))
+        self.assertEqual(robot.actions[0]["action"], "move")
         self.assertIn("cup", response)
-        self.assertIn("cup", action_json)
 
-    def test_scene_query_routes_to_vision_tool(self):
+    def test_approach_no_target_does_not_move(self):
+        vision = _FakeVisionTool(found=False)
+        robot = _FakeRobotTool()
+        self.agent = RobotAgentNode(llm=MockLLM(), tool=robot, vision_tool=vision)
+        ok, response, action_json = self.agent.handle_task("帮我找杯子")
+        self.assertTrue(ok)
+        self.assertEqual(robot.actions, [])
+        self.assertIn("没有发现目标", response)
+
+    def test_scene_query_describes_only(self):
+        vision = _FakeVisionTool()
+        robot = _FakeRobotTool()
+        self.agent = RobotAgentNode(llm=MockLLM(), tool=robot, vision_tool=vision)
         ok, response, action_json = self.agent.handle_task("场景中有什么物体？")
         self.assertTrue(ok)
-        self.assertEqual(self.vision.last_query, ("scene", ""))
+        self.assertEqual(vision.last_query, ("scene", ""))
+        self.assertEqual(robot.actions, [])
         self.assertIn("未检测到", response)
 
 

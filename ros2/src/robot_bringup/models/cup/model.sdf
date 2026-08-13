@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <model name="cup">
+    <static>true</static>
+    <link name="cup_link">
+      <pose>0 0 0.15 0 0 0</pose>
+      <collision name="collision">
+        <geometry>
+          <box>
+            <size>0.02 0.3 0.3</size>
+          </box>
+        </geometry>
+      </collision>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.02 0.3 0.3</size>
+          </box>
+        </geometry>
+        <material>
+          <script>
+            <uri>model://cup/materials/scripts</uri>
+            <uri>model://cup/materials/textures</uri>
+            <name>Cup/Diffuse</name>
+          </script>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>

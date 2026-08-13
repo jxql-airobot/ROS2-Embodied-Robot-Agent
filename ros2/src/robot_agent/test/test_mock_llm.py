@@ -57,18 +57,34 @@ class TestMockLLM(unittest.TestCase):
 
     def test_vision_find_chinese(self):
         plan = self.llm.generate_action("帮我找杯子")
-        self.assertEqual(plan.action, "vision")
+        self.assertEqual(plan.action, "approach")
         self.assertEqual(plan.goal, "cup")
 
     def test_vision_find_english(self):
         plan = self.llm.generate_action("find a cup")
-        self.assertEqual(plan.action, "vision")
+        self.assertEqual(plan.action, "approach")
         self.assertEqual(plan.goal, "cup")
 
     def test_vision_scene(self):
         plan = self.llm.generate_action("场景中有什么物体？")
         self.assertEqual(plan.action, "vision")
         self.assertEqual(plan.goal, "")
+
+    def test_plan_motion_left(self):
+        vision = {"found": True, "objects": [{"direction": "left"}]}
+        plan = self.llm.plan_motion("找杯子", vision)
+        self.assertEqual(plan.action, "rotate")
+        self.assertGreater(plan.angular_z, 0)
+
+    def test_plan_motion_center(self):
+        vision = {"found": True, "objects": [{"direction": "center"}]}
+        plan = self.llm.plan_motion("找杯子", vision)
+        self.assertEqual(plan.action, "move")
+        self.assertGreater(plan.linear_x, 0)
+
+    def test_plan_motion_no_target(self):
+        plan = self.llm.plan_motion("找杯子", {"found": False, "objects": []})
+        self.assertEqual(plan.action, "stop")
 
 
 if __name__ == "__main__":

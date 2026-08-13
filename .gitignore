@@ -13,8 +13,8 @@ __pycache__/
 .venv/
 venv/
 
-# 模型与大文件（不上传）
-models/
+# 模型与大文件（不上传；仅根目录 models/ 存放权重，Gazebo 模型在 ros2 包内）
+/models/
 cache/
 *.pt
 *.pth

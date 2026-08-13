@@ -32,6 +32,11 @@ class TestActionPlan(unittest.TestCase):
         self.assertEqual(plan.action, "vision")
         self.assertEqual(plan.goal, "cup")
 
+    def test_approach_action_is_allowed(self):
+        plan = ActionPlan.from_dict({"action": "approach", "goal": "cup"})
+        self.assertEqual(plan.action, "approach")
+        self.assertEqual(plan.goal, "cup")
+
 
 if __name__ == "__main__":
     unittest.main()

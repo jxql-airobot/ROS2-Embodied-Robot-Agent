@@ -99,6 +99,8 @@ class RobotAgentNode(Node):
             plan = self._llm.generate_action(task)
             if plan.action == "vision":
                 return self._handle_vision(plan, task)
+            if plan.action == "approach":
+                return self._handle_approach(plan, task)
             action_json = json.dumps(plan.to_command_dict(), ensure_ascii=False)
             ok = self._tool.execute_action(plan.to_command_dict())
             if ok:
@@ -126,6 +128,37 @@ class RobotAgentNode(Node):
         except Exception as exc:  # keep the node alive on unexpected errors
             self.get_logger().error(f"vision error for task '{task}': {exc}")
             return False, f"视觉查询失败：{exc}", ""
+
+    def _handle_approach(self, plan: ActionPlan, task: str) -> tuple[bool, str, str]:
+        goal = (plan.goal or "").strip()
+        try:
+            vision = (
+                self._vision_tool.find_object(goal)
+                if goal
+                else self._vision_tool.get_objects()
+            )
+            if not vision.get("found"):
+                response = f"没有发现目标 {goal}。" if goal else "当前场景未检测到任何物体。"
+                return True, response, json.dumps(vision, ensure_ascii=False)
+
+            motion = self._llm.plan_motion(task, vision)
+            action_json = json.dumps(motion.to_command_dict(), ensure_ascii=False)
+            if motion.action == "stop":
+                response = f"找到 {goal}，但未执行运动。" if goal else "检测到目标，但未执行运动。"
+                return True, response, action_json
+
+            ok = self._tool.execute_action(motion.to_command_dict())
+            if ok:
+                response = f"找到 {goal}。{motion.response}" if goal else motion.response
+                self.get_logger().info(f"approach '{task}' -> {action_json}")
+                return True, response, action_json
+            return False, "执行层受理失败", action_json
+        except LLMError as exc:
+            self.get_logger().warn(f"approach LLM error for task '{task}': {exc}")
+            return False, str(exc), ""
+        except Exception as exc:  # keep the node alive on unexpected errors
+            self.get_logger().error(f"approach error for task '{task}': {exc}")
+            return False, f"内部错误：{exc}", ""
 
     def _on_task_input(self, msg: String) -> None:
         success, response, _ = self.handle_task(msg.data)

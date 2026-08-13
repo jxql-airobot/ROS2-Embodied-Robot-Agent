@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <world name="cup_world">
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <!-- YOLO target: a textured mug billboard directly ahead of the robot. -->
+    <include>
+      <uri>model://cup</uri>
+      <pose>1.0 0 0 0 0 0</pose>
+    </include>
+  </world>
+</sdf>

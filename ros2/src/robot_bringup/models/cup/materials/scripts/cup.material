@@ -1,0 +1,19 @@
+material Cup/Diffuse
+{
+  technique
+  {
+    pass
+    {
+      ambient 1 1 1 1
+      diffuse 1 1 1 1
+      specular 0 0 0 1
+      emissive 0.6 0.6 0.6 1
+      texture_unit
+      {
+        texture cup.png
+        filtering anistropic
+        max_anisotropy 16
+      }
+    }
+  }
+}

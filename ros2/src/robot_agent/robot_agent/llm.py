@@ -10,11 +10,12 @@ from __future__ import annotations
 
 import os
 import re
+import json
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from robot_agent.action_plan import ActionPlan
-from robot_agent.prompt import SYSTEM_PROMPT, parse_action_json
+from robot_agent.prompt import MOTION_PROMPT, SYSTEM_PROMPT, parse_action_json
 
 
 class LLMError(Exception):
@@ -27,6 +28,10 @@ class BaseLLM(ABC):
     @abstractmethod
     def generate_action(self, task: str) -> ActionPlan:
         """Parse a natural-language task into a structured ActionPlan."""
+
+    @abstractmethod
+    def plan_motion(self, task: str, vision: Dict[str, Any]) -> ActionPlan:
+        """Given a vision result, produce a motion ActionPlan (move/rotate/stop)."""
 
 
 # ---------------------------------------------------------------------------
@@ -55,6 +60,8 @@ DEFAULT_SPEED = 0.3
 DEFAULT_ANGULAR = 0.5
 DEFAULT_MOVE_DURATION = 2.0
 DEFAULT_ROTATE_DURATION = 3.14  # ~90 deg at 0.5 rad/s
+_APPROACH_ROTATE_DURATION = 30.0 * 3.141592653589793 / 180.0 / DEFAULT_ANGULAR  # ~30 deg
+_APPROACH_MOVE_DURATION = 0.5 / DEFAULT_SPEED  # ~0.5 m
 
 # Common Chinese number words -> digits (enough for demo commands like 半米/九十度)
 _CHINESE_NUM = {
@@ -86,7 +93,7 @@ class MockLLM(BaseLLM):
 
         if _contains_any(t, _VISION_FIND):
             target = self._extract_vision_target(task)
-            return ActionPlan("vision", goal=target, response=f"正在查找：{target}。")
+            return ActionPlan("approach", goal=target, response=f"正在寻找并靠近：{target}。")
         if _contains_any(t, _VISION_SCENE):
             return ActionPlan("vision", goal="", response="正在查看当前场景。")
 
@@ -177,6 +184,34 @@ class MockLLM(BaseLLM):
                 return en
         return text
 
+    def plan_motion(self, task: str, vision: Dict[str, Any]) -> ActionPlan:
+        objects = vision.get("objects", [])
+        if not objects:
+            return ActionPlan("stop", response="未发现目标。")
+        direction = objects[0].get("direction", "unknown")
+        if direction == "left":
+            return ActionPlan(
+                "rotate",
+                angular_z=+DEFAULT_ANGULAR,
+                duration=_APPROACH_ROTATE_DURATION,
+                response="目标在左侧，向左旋转。",
+            )
+        if direction == "right":
+            return ActionPlan(
+                "rotate",
+                angular_z=-DEFAULT_ANGULAR,
+                duration=_APPROACH_ROTATE_DURATION,
+                response="目标在右侧，向右旋转。",
+            )
+        if direction == "center":
+            return ActionPlan(
+                "move",
+                linear_x=+DEFAULT_SPEED,
+                duration=_APPROACH_MOVE_DURATION,
+                response="目标在正前方，向前移动。",
+            )
+        return ActionPlan("stop", response="无法判断目标方向。")
+
 
 # ---------------------------------------------------------------------------
 # OpenAI-compatible chat completions (DeepSeek / OpenAI / compatible)
@@ -235,6 +270,41 @@ class ChatCompletionsLLM(BaseLLM):
             raise
         except Exception as exc:
             raise LLMError(f"LLM call failed: {exc}") from exc
+
+    def plan_motion(self, task: str, vision: Dict[str, Any]) -> ActionPlan:
+        if not self.api_key:
+            raise LLMError(f"API key environment variable {self.api_key_env} is not set")
+        try:
+            resp = self._requests.post(
+                f"{self.base_url}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": self.model,
+                    "messages": [
+                        {"role": "system", "content": MOTION_PROMPT},
+                        {
+                            "role": "user",
+                            "content": f"任务：{task}\n视觉结果：{json.dumps(vision, ensure_ascii=False)}",
+                        },
+                    ],
+                    "temperature": self.temperature,
+                    "max_tokens": 256,
+                },
+                timeout=self.timeout,
+            )
+            resp.raise_for_status()
+            content = resp.json()["choices"][0]["message"]["content"]
+            data = parse_action_json(content)
+            plan = ActionPlan.from_dict(data)
+            plan.response = f"已生成动作：{plan.action}"
+            return plan
+        except LLMError:
+            raise
+        except Exception as exc:
+            raise LLMError(f"LLM motion planning failed: {exc}") from exc
 
 
 # ---------------------------------------------------------------------------

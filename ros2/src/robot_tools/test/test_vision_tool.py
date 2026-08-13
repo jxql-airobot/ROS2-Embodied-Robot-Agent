@@ -47,8 +47,24 @@ class TestVisionToolQuery(unittest.TestCase):
 
     def test_result_json_shape_is_stable(self):
         obj = Ros2VisionTool._find(SCENE, "cup")["objects"][0]
-        self.assertEqual(set(obj.keys()), {"name", "confidence", "position"})
+        self.assertEqual(
+            set(obj.keys()),
+            {"name", "confidence", "position", "center_x", "center_y", "direction", "distance"},
+        )
         self.assertEqual(set(obj["position"].keys()), {"x", "y"})
+        self.assertEqual(obj["center_x"], 320)
+        self.assertEqual(obj["center_y"], 240)
+        self.assertIsNone(obj["distance"])
+
+    def test_direction_buckets(self):
+        cup = Ros2VisionTool._find(SCENE, "cup")["objects"][0]
+        self.assertEqual(cup["direction"], "center")
+        person = Ros2VisionTool._find(SCENE, "person")["objects"][0]
+        self.assertEqual(person["direction"], "left")
+
+    def test_direction_unknown_without_width(self):
+        obj = Ros2VisionTool._find({"objects": [{"name": "cup", "confidence": 0.9, "center": [10, 20]}]}, "cup")["objects"][0]
+        self.assertEqual(obj["direction"], "unknown")
 
 
 if __name__ == "__main__":

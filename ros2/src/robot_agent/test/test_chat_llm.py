@@ -45,6 +45,17 @@ class TestChatCompletionsLLM(unittest.TestCase):
         with self.assertRaises(LLMError):
             llm.generate_action("场景中有什么物体？")
 
+    @mock.patch("requests.post")
+    def test_plan_motion_is_parsed_from_chat_response(self, post):
+        post.return_value = _FakeResponse(
+            {"choices": [{"message": {"content": '{"action":"rotate","angular_z":0.5,"duration":1.05}'}}]}
+        )
+        llm = ChatCompletionsLLM()
+        vision = {"found": True, "objects": [{"direction": "left"}]}
+        plan = llm.plan_motion("找杯子", vision)
+        self.assertEqual(plan.action, "rotate")
+        self.assertGreater(plan.angular_z, 0)
+
 
 if __name__ == "__main__":
     unittest.main()
