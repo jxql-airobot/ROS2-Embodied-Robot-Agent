@@ -15,7 +15,8 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
 from robot_agent.action_plan import ActionPlan
-from robot_agent.prompt import MOTION_PROMPT, SYSTEM_PROMPT, parse_action_json
+from robot_agent.planner.task_schema import Plan, Task
+from robot_agent.prompt import MOTION_PROMPT, PLAN_PROMPT, SYSTEM_PROMPT, parse_action_json
 
 
 class LLMError(Exception):
@@ -32,6 +33,10 @@ class BaseLLM(ABC):
     @abstractmethod
     def plan_motion(self, task: str, vision: Dict[str, Any]) -> ActionPlan:
         """Given a vision result, produce a motion ActionPlan (move/rotate/stop)."""
+
+    @abstractmethod
+    def plan_goal(self, goal: str) -> Plan:
+        """Decompose a high-level goal into a Plan of Tasks."""
 
 
 # ---------------------------------------------------------------------------
@@ -212,6 +217,58 @@ class MockLLM(BaseLLM):
             )
         return ActionPlan("stop", response="无法判断目标方向。")
 
+    def plan_goal(self, goal: str) -> Plan:
+        tasks = []
+        text = goal.lower()
+        nid = 0
+        if any(w in text for w in ("找", "find", "search", "观察", "看到", "detect")):
+            target = self._extract_vision_target(goal)
+            nid += 1
+            tasks.append(
+                Task(
+                    id=nid,
+                    tool="vision",
+                    action="find_object",
+                    target=target,
+                    name=f"find {target}",
+                    importance=90,
+                    urgency=80,
+                    complexity=60,
+                    dependency=90,
+                )
+            )
+        if any(w in text for w in ("移动", "过去", "靠近", "前进", "move", "approach", "go")):
+            nid += 1
+            tasks.append(
+                Task(
+                    id=nid,
+                    tool="robot",
+                    action="move",
+                    target="",
+                    name="move to target",
+                    importance=85,
+                    urgency=75,
+                    complexity=50,
+                    dependency=0,
+                )
+            )
+        if not tasks:
+            nid += 1
+            tasks.append(
+                Task(
+                    id=nid,
+                    tool="robot",
+                    action="infer",
+                    target=goal,
+                    name=goal,
+                    importance=70,
+                    urgency=60,
+                    complexity=40,
+                    dependency=0,
+                )
+            )
+        return Plan(goal=goal, tasks=tasks)
+
 
 # ---------------------------------------------------------------------------
 # OpenAI-compatible chat completions (DeepSeek / OpenAI / compatible)
@@ -305,6 +362,36 @@ class ChatCompletionsLLM(BaseLLM):
             raise
         except Exception as exc:
             raise LLMError(f"LLM motion planning failed: {exc}") from exc
+
+    def plan_goal(self, goal: str) -> Plan:
+        if not self.api_key:
+            raise LLMError(f"API key environment variable {self.api_key_env} is not set")
+        try:
+            resp = self._requests.post(
+                f"{self.base_url}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": self.model,
+                    "messages": [
+                        {"role": "system", "content": PLAN_PROMPT},
+                        {"role": "user", "content": goal},
+                    ],
+                    "temperature": self.temperature,
+                    "max_tokens": 512,
+                },
+                timeout=self.timeout,
+            )
+            resp.raise_for_status()
+            content = resp.json()["choices"][0]["message"]["content"]
+            data = parse_action_json(content)
+            return Plan.from_dict(data)
+        except LLMError:
+            raise
+        except Exception as exc:
+            raise LLMError(f"LLM planning failed: {exc}") from exc
 
 
 # ---------------------------------------------------------------------------

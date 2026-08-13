@@ -1,7 +1,7 @@
 # ROS2 Multimodal Embodied Robot Agent System
 
-> 状态：**P0–P5 已落地**：ROS2 闭环、视觉感知（YOLO）、
-> Vision→Language→Action 闭环（找物 → 规划 → 机器人运动）。
+> 状态：**P0–P6 已落地**：ROS2 闭环、视觉感知（YOLO）、
+> Vision→Language→Action 闭环、分层 LLM Agent（Pro 规划 + Task Manager + Flash 执行）。
 > 面向具身智能的多模态机器人智能体系统，独立演进。
 
 ## 定位
@@ -31,6 +31,23 @@
 | 语音 | 规划中 | ASR → 文本任务 |
 | 模型 | 多模态模型接口（不绑定单一供应商） | GPT / Gemini / Claude / Qwen / DeepSeek |
 | 网页 | Streamlit 控制台（web/） | 视觉面板实时显示 |
+
+## 分层 Agent 架构（Hierarchical）
+
+```text
+DeepSeek Pro Planner（高层任务拆解）
+        ↓
+Task Manager（优先级排序 / 调度 / 失败重规划）
+        ↓
+DeepSeek Flash Executor（低层单任务执行）
+        ↓
+VisionTool / RobotTool / NavTool → ROS2 → Robot
+```
+
+- 简单任务（停止/前进/状态）走 Flash Executor 快速执行；
+  复杂任务（找物+移动 / 导航）走 Pro Planner → Task Manager → Flash Executor。
+- 优先级：`importance×0.4 + urgency×0.3 + dependency×0.2 + complexity×0.1`。
+- 配置：`ros2/src/robot_agent/config/agent.yaml`（`mode` / `planner.model` / `executor.model`）。
 
 ## 目录结构
 

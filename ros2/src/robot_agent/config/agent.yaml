@@ -1,0 +1,16 @@
+# Hierarchical agent config.
+# mode: hierarchical | simple
+mode: hierarchical
+
+# provider: mock (offline) | deepseek | openai
+provider: mock
+
+planner:
+  model: deepseek-pro
+  base_url: https://api.deepseek.com/v1
+  api_key_env: DEEPSEEK_API_KEY
+
+executor:
+  model: deepseek-flash
+  base_url: https://api.deepseek.com/v1
+  api_key_env: DEEPSEEK_API_KEY

@@ -52,6 +52,20 @@ MOTION_PROMPT = (
 )
 
 
+PLAN_PROMPT = (
+    "你是具身机器人 Agent 的高层规划器。把用户的复杂目标拆解成有序的任务列表。\n"
+    "只输出一个 JSON 对象，不要输出其他文字。\n"
+    "可用 tool：vision（视觉）、robot（运动）、nav（导航，暂未实现）。\n"
+    "vision 可用 action：find_object（target=物体英文名）、observe。\n"
+    "robot 可用 action：move、rotate、stop。\n"
+    "每个任务字段：id、tool、action、target、name、importance、urgency、complexity、"
+    "dependency（均为 0-100 数字，dependency 表示依赖前序任务的程度）。\n"
+    '输出格式：{"goal":"...","tasks":[{"id":1,"tool":"vision","action":"find_object",'
+    '"target":"cup","name":"find cup","importance":90,"urgency":80,"complexity":60,'
+    '"dependency":0}]}\n'
+)
+
+
 def parse_action_json(text: str) -> Dict[str, Any]:
     """Extract the first JSON object from LLM output (tolerates markdown fences)."""
     text = text.strip()

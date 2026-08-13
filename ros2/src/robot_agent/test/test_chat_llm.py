@@ -56,6 +56,25 @@ class TestChatCompletionsLLM(unittest.TestCase):
         self.assertEqual(plan.action, "rotate")
         self.assertGreater(plan.angular_z, 0)
 
+    @mock.patch("requests.post")
+    def test_plan_goal_is_parsed_from_chat_response(self, post):
+        post.return_value = _FakeResponse(
+            {
+                "choices": [
+                    {
+                        "message": {
+                            "content": '{"goal":"find cup","tasks":[{"id":1,"tool":"vision","action":"find_object","target":"cup"}]}'
+                        }
+                    }
+                ]
+            }
+        )
+        llm = ChatCompletionsLLM()
+        plan = llm.plan_goal("找到杯子然后移动过去")
+        self.assertEqual(plan.goal, "find cup")
+        self.assertEqual(len(plan.tasks), 1)
+        self.assertEqual(plan.tasks[0].tool, "vision")
+
 
 if __name__ == "__main__":
     unittest.main()
